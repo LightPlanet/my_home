@@ -30,8 +30,8 @@ func (this *Product) CalcStatus() {
 	}
 }
 
-func Open() (*sql.DB, error) {
-	return sql.Open("sqlite", "database.db")
+func Open(file string) (*sql.DB, error) {
+	return sql.Open("sqlite", file)
 }
 
 // Helper, converts HTML ProductFilterQ to [sqlQuery, sqlQueryArgs]
