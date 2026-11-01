@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Умный холодильник</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span class="logo">🧊</span>
+        <span class="logo-text">Холодильник</span>
+        <button class="toggle-btn" id="toggleBtn" title="Свернуть меню">☰</button>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/products" class="nav-item {{if eq .Active "products"}}active{{end}}">
+          <span class="nav-icon">🥦</span><span class="nav-label">Продукты</span>
+        </a>
+        <a href="/recipes" class="nav-item {{if eq .Active "recipes"}}active{{end}}">
+          <span class="nav-icon">🍳</span><span class="nav-label">Рецепты</span>
+        </a>
+      </nav>
+    </aside>
+
+    <main class="content">
+      <header class="content-header">
+        <h1>{{.Title}}</h1>
+        <a class="primary-btn" href="/products/new">+ Добавить</a>
+      </header>
+
+      <section class="section">
+        <div class="filters">
+          <a class="filter-btn {{if eq .ProductsFilterQ "all"}}active{{end}}" href="?filter=all">Все</a>
+          <a class="filter-btn {{if eq .ProductsFilterQ "fresh"}}active{{end}}" href="?filter=fresh">Свежие</a>
+          <a class="filter-btn {{if eq .ProductsFilterQ "expiring"}}active{{end}}" href="?filter=expiring">Скоро истекут</a>
+          <a class="filter-btn {{if eq .ProductsFilterQ "expired"}}active{{end}}" href="?filter=expired">Просрочены</a>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Название</th>
+                <th>Количество</th>
+                <th>Срок годности</th>
+                <th>Статус</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {{range .Products}}
+              <tr>
+                <td>{{.Name}}</td>
+                <td>{{.Count}}</td>
+                <td>{{.ExpiresAt.Format "2006-01-02"}}</td>
+                <td><span class="badge {{.Status}}">{{.Status}}</span></td>
+                <td class="actions">
+                  <a class="icon-btn" href="/products/{{.ID}}/edit">✏️</a>
+                  <form method="POST" action="/products/{{.ID}}/delete" style="display:inline">
+                    <button class="icon-btn" type="submit">🗑️</button>
+                  </form>
+                </td>
+              </tr>
+              {{else}}
+              <tr><td colspan="5" class="placeholder">Холодильник пуст!</td></tr>
+              {{end}}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
