@@ -4,7 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	_ "modernc.org/sqlite"
 )
+
+// Database helpers ---------------------------------------------------------------------
 
 type Product struct {
 	ID        int
@@ -17,7 +21,12 @@ type Product struct {
 // Time until expiration date, when "expiring" status will be shown
 const expiringWarningDuration = time.Duration(3 * 24 * time.Hour) // 3 days
 
-// NOTE: This function is called after db-select
+// SQLite does not have time format
+// Using Format("2006-01-02") workaround - with such formatting
+// lexicographical order of 'date as time' and 'date as text' is the same
+const sqlDateFormat = "2006-01-02"
+
+// NOTE: This function is called after db-select (see GetProducts())
 func (this *Product) CalcStatus() {
 	remaining := time.Until(this.ExpiresAt)
 	switch {
@@ -30,21 +39,41 @@ func (this *Product) CalcStatus() {
 	}
 }
 
-func Open(file string) (*sql.DB, error) {
-	return sql.Open("sqlite", file)
+// Database methods ---------------------------------------------------------------------
+
+var db *sql.DB
+
+func Open(file string) (err error) {
+	const fnName = "Open"
+
+	db, err = sql.Open("sqlite", file)
+	if err != nil {
+		return fmt.Errorf("%s: Open: %w", fnName, err)
+	}
+
+	createTable := `CREATE TABLE IF NOT EXISTS products (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		count INTEGER NOT NULL,
+		expires_at TEXT NOT NULL
+	)`
+	if _, err := db.Exec(createTable); err != nil {
+		return fmt.Errorf("%s: CreateTable: %w", fnName, err)
+	}
+	return nil
 }
 
-// Helper, converts HTML ProductFilterQ to [sqlQuery, sqlQueryArgs]
-func transformURLQueryToSQL(urlQuery string) (string, []any) {
-	// SQLite does not have time format
-	// Using Format("2006-01-02") workaround (text and date ordering are the same)
-	const sqlDateFormat = "2006-01-02"
+func Close() error {
+	return db.Close()
+}
 
+// HTML ProductFilterQuery -> [sqlQuery, sqlQueryArgs]
+func transformFilterURLToSQL(urlFilter string) (string, []any) {
 	nowTime := time.Now()
 	now := nowTime.Format(sqlDateFormat)
 	expiringWarningAt := nowTime.Add(expiringWarningDuration).Format(sqlDateFormat)
 
-	switch urlQuery {
+	switch urlFilter {
 	case "fresh":
 		return "WHERE expires_at > ?", []any{expiringWarningAt}
 	case "expiring":
@@ -56,27 +85,17 @@ func transformURLQueryToSQL(urlQuery string) (string, []any) {
 	}
 }
 
-func GetProducts(db *sql.DB, productsFilter string) ([]Product, error) {
+func GetProducts(urlFilter, urlSearch string) ([]Product, error) {
 	const fnName = "GetProducts"
 
-	createTable := `CREATE TABLE IF NOT EXISTS products (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name STRING NOT NULL
-		count INTEGER NOT NULL
-		expires_at STRING NOT NULL
-	)`
-	if _, err := db.Exec(createTable); err != nil {
-		return nil, fmt.Errorf("%s: %w", fnName, err)
-	}
-
-	// SELECT
-	query, args := transformURLQueryToSQL(productsFilter)
+	// SELECT matching
+	filter, args := transformFilterURLToSQL(urlFilter)
 	selectProducts :=
 		`SELECT id, name, count, expires_at FROM products ` +
-			query + ` ORDER BY expires_at`
+			filter + ` ORDER BY expires_at`
 	rows, err := db.Query(selectProducts, args...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s: %w\n", fnName, err)
 	}
 	defer rows.Close()
 
@@ -84,20 +103,41 @@ func GetProducts(db *sql.DB, productsFilter string) ([]Product, error) {
 	var products []Product
 	for rows.Next() {
 		var p Product
-		if err := rows.Scan(&p.ID, &p.Name, &p.Count, &p.ExpiresAt); err != nil {
-			return nil, err
+		var expiresAtStr string
+
+		if err := rows.Scan(&p.ID, &p.Name, &p.Count, &expiresAtStr); err != nil {
+			return nil, fmt.Errorf("%s: %w\n", fnName, err)
+		}
+		if p.ExpiresAt, err = time.Parse(sqlDateFormat, expiresAtStr); err != nil {
+			return nil, fmt.Errorf("%s: %w\n", fnName, err)
 		}
 		p.CalcStatus()
 		products = append(products, p)
 
 		if err = rows.Err(); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%s: %w\n", fnName, err)
 		}
 	}
 	return products, nil
 }
 
-func AddProduct(db *sql.DB, p Product) error {
+func AddProduct(p Product) error {
+	const fnName = "AddProduct"
 
+	insert := `INSERT INTO products (name, count, expires_at) VALUES (?, ?, ?);`
+	_, err := db.Exec(insert, p.Name, p.Count, p.ExpiresAt.Format(sqlDateFormat))
+	if err != nil {
+		return fmt.Errorf("%s: %w", fnName, err)
+	}
+	return nil
+}
+
+func DeleteProduct(id int) error {
+	const fnName = "DeleteProduct"
+
+	_, err := db.Exec(`DELETE FROM products WHERE id = ?;`, id)
+	if err != nil {
+		return fmt.Errorf("%s: %w", fnName, err)
+	}
 	return nil
 }
