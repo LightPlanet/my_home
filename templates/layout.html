@@ -1,0 +1,46 @@
+{{define "layout"}}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Title}} — Умный холодильник</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-container">
+
+    <!-- Боковое меню (Сворачивающееся) -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span class="logo">🧊</span>
+        <span class="logo-text">Холодильник</span>
+        <button class="toggle-btn" id="toggleSidebar" title="Свернуть/Развернуть">☰</button>
+      </div>
+      <nav class="sidebar-nav">
+
+        <!-- Ссылка на главную -->
+        <a href="/" class="nav-item {{if eq .ActiveMenu "home"}}active{{end}}">
+          <span class="nav-icon">🏠</span><span class="nav-label">Главная</span>
+        </a>
+        <a href="/products" class="nav-item {{if eq .ActiveMenu "products"}}active{{end}}">
+          <span class="nav-icon">🥦</span><span class="nav-label">Продукты</span>
+        </a>
+        <a href="/recipes" class="nav-item {{if eq .ActiveMenu "recipes"}}active{{end}}">
+          <span class="nav-icon">🍳</span><span class="nav-label">Рецепты</span>
+        </a>
+        
+        <!-- Сюда в будущем вы просто допишете новые ссылки -->
+      </nav>
+    </aside>
+
+    <!-- Основной контент -->
+    <main class="main-content">
+      {{template "content" .}}
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
+{{end}}

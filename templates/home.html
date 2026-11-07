@@ -1,0 +1,56 @@
+{{define "content"}}
+<header class="content-header">
+  <div>
+    <h1>{{.Title}}</h1>
+    <p style="color: #64748b; margin-top: 4px;">Срочно обратите внимание! Эти продукты могут испортиться в ближайшее время.</p>
+  </div>
+  <!-- Быстрая ссылка на полный список -->
+  <a href="/products" class="btn btn-secondary">Открыть весь холодильник →</a>
+</header>
+
+<!-- Панель со сводкой (виджеты) -->
+<section class="dashboard-summary">
+  <div class="summary-card danger">
+    <span class="summary-icon">🚨</span>
+    <div class="summary-info">
+      <h3>Критично</h3>
+      <p>Продуктов на исходе: <strong>{{len .ExpiringProducts}}</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- Список критических продуктов в виде красивых карточек -->
+<section class="products-grid">
+  {{range .ExpiringProducts}}
+  <div class="product-card alert-{{.Status}}">
+    <div class="card-body">
+      <div class="product-main">
+        <span class="product-emoji">
+          {{if eq .Status "expired"}}🗑️{{else}}⚠️{{end}}
+        </span>
+        <div>
+          <h3 class="product-title">{{.Name}}</h3>
+          <p class="product-qty">Количество: <strong>{{.Count}} шт.</strong></p>
+        </div>
+      </div>
+      
+      <div class="product-meta">
+        <span class="badge badge-{{.Status}}">
+          {{if eq .Status "expired"}}Просрочен{{else}}Истекает срок{{end}}
+        </span>
+        <div class="expiry-date">
+          До: <strong>{{.ExpiresAt.Format "2006-01-02"}}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+  {{else}}
+  <!-- Если всё в порядке и продуктов на грани порчи нет -->
+  <div class="dashboard-placeholder">
+    <span class="placeholder-icon">🎉</span>
+    <h2>Отличные новости!</h2>
+    <p>В ближайшие дни ничего не испортится. Ваш холодильник в полной безопасности.</p>
+  </div>
+  {{end}}
+</section>
+{{end}}
