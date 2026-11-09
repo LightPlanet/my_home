@@ -144,3 +144,10 @@ body { background-color: var(--bg-main); color: var(--text-dark); display: flex;
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
 
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* Статусы ингредиентов в рецептах */
+.ing-bullet { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.ing-bullet.enough { background-color: var(--success); }
+.ing-bullet.missing { background-color: var(--danger); }
+
+.ing-text.missing { font-weight: 600; color: var(--danger); }

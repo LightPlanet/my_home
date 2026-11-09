@@ -1,3 +1,35 @@
+// Управление модальным окном рецептов (в стиле вашего существующего окна)
+function toggleRecipeModal(show) {
+    const modal = document.getElementById('recipeModal');
+    if (modal) {
+        if (show) {
+            modal.classList.add('active');
+        } else {
+            modal.classList.remove('active');
+        }
+    }
+}
+
+// Динамическое добавление строк для ингредиентов
+function addIngredientFormRow() {
+    const container = document.getElementById('ingredientsFormContainer');
+    if (!container) return;
+    
+    const row = document.createElement('div');
+    row.className = 'ingredient-row';
+    row.style.display = 'flex';
+    row.style.gap = '8px';
+    row.style.alignItems = 'center';
+    
+    // Инпуты получают идентичные вашим стили оформления
+    row.innerHTML = `
+        <input type="text" name="ingr_names[]" placeholder="Название" required style="flex-grow: 1; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;">
+        <input type="number" name="ingr_counts[]" value="1" min="1" required style="width: 80px; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;">
+        <button type="button" onclick="this.parentElement.remove()" style="background: none; border: none; color: var(--danger); font-size: 20px; cursor: pointer; padding: 0 4px;">&times;</button>
+    `;
+    container.appendChild(row);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log("JS скрипт успешно загружен!");
 

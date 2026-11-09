@@ -21,12 +21,14 @@ func main() {
 	//fmt.Println("serverAddr", serverAddr)
 	//return
 
+	// Prepare DB
 	if err := database.Open(dbFile); err != nil {
 		log.Println(err)
 		return
 	}
 	defer database.Close()
 
+	// Prepare files & callbacks
 	if err := handlers.ParseTemplates(); err != nil {
 		log.Println(err)
 		return
@@ -35,6 +37,7 @@ func main() {
 	http.HandleFunc("/", handlers.HomeHandler)
 	http.HandleFunc("/products", handlers.ProductsHandler)
 	http.HandleFunc("/products/{id}/delete", handlers.ProductsDeleteHandler)
+	http.HandleFunc("/recipes", handlers.RecipesHandler)
 
 	log.Printf("Server starting at %s", serverAddr)
 	if err := http.ListenAndServe(serverAddr, nil); err != nil {
