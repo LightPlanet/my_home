@@ -76,7 +76,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodGet { // Разрешаем только GET-запросы на главную
-		http.Error(w, "Метод не поддерживается", http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -132,7 +132,7 @@ func productAdd(w http.ResponseWriter, r *http.Request) {
 	err = database.AddProduct(product, expiresAtStr)
 	if err != nil {
 		log.Printf("%s: %s\n", fnName, err)
-		http.Error(w, "Ошибка сохранения", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -147,7 +147,7 @@ func productShow(w http.ResponseWriter, r *http.Request) {
 	products, err := database.GetProducts(filter, search)
 	if err != nil {
 		log.Printf("%s: %s\n", fnName, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -174,7 +174,7 @@ func ProductHandler(w http.ResponseWriter, r *http.Request) {
 		productShow(w, r)
 	default:
 		log.Printf("%s unsupporetd http.Method: %v\n", fnName, r.Method)
-		http.Error(w, "Метод не поддерживается", http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
@@ -220,7 +220,7 @@ func recipeAdd(w http.ResponseWriter, r *http.Request) {
 	err := database.AddRecipe(rName, rDesc, ingrNames, ingrCounts)
 	if err != nil {
 		log.Printf("%s: %s\n", fnName, err)
-		http.Error(w, "", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -234,7 +234,7 @@ func recipeShow(w http.ResponseWriter, r *http.Request) {
 	recipes, err := database.GetRecipes(search)
 	if err != nil {
 		log.Printf("%s: %s\n", fnName, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 

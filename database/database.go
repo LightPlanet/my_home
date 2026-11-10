@@ -177,7 +177,7 @@ func GetProducts(urlFilter, urlSearch string) ([]Product, error) {
 			filter + ` ORDER BY expires_at`
 	rows, err := db.Query(selectProducts, args...)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w\n", fnName, err)
+		return nil, fmt.Errorf("%s: Select: %w", fnName, err)
 	}
 	defer rows.Close()
 
@@ -188,16 +188,16 @@ func GetProducts(urlFilter, urlSearch string) ([]Product, error) {
 		var expiresAtStr string
 
 		if err := rows.Scan(&p.ID, &p.Name, &p.Count, &expiresAtStr); err != nil {
-			return nil, fmt.Errorf("%s: %w\n", fnName, err)
+			return nil, fmt.Errorf("%s: %w", fnName, err)
 		}
 		if p.ExpiresAt, err = time.Parse(sqlDateFormat, expiresAtStr); err != nil {
-			return nil, fmt.Errorf("%s: %w\n", fnName, err)
+			return nil, fmt.Errorf("%s: %w", fnName, err)
 		}
 		p.CalcStatus()
 		products = append(products, p)
 
 		if err = rows.Err(); err != nil {
-			return nil, fmt.Errorf("%s: %w\n", fnName, err)
+			return nil, fmt.Errorf("%s: %w", fnName, err)
 		}
 	}
 	return products, nil
@@ -330,7 +330,7 @@ func AddRecipe(rName, rDescription string, ingrNames, ingrCounts []string) error
 	// Open database transaction
 	tx, err := db.Begin()
 	if err != nil {
-		return fmt.Errorf("%s: %s\n", fnName, err)
+		return fmt.Errorf("%s: %s", fnName, err)
 	}
 	// Allows safe fallback in case of panic (if no Commit() then Rollback())
 	defer tx.Rollback()
@@ -338,12 +338,12 @@ func AddRecipe(rName, rDescription string, ingrNames, ingrCounts []string) error
 	insert := `INSERT INTO recipes (name, description) VALUES (?, ?)`
 	res, err := tx.Exec(insert, strings.TrimSpace(rName), strings.TrimSpace(rDescription))
 	if err != nil {
-		return fmt.Errorf("%s: %s\n", fnName, err)
+		return fmt.Errorf("%s: %s", fnName, err)
 	}
 
 	recipeID, err := res.LastInsertId()
 	if err != nil {
-		return fmt.Errorf("%s: %s\n", fnName, err)
+		return fmt.Errorf("%s: %s", fnName, err)
 	}
 
 	insert = `INSERT INTO recipe_ingredients
@@ -356,18 +356,18 @@ func AddRecipe(rName, rDescription string, ingrNames, ingrCounts []string) error
 
 		count, err := strconv.Atoi(ingrCounts[i])
 		if err != nil || count <= 0 {
-			return fmt.Errorf("%s: %s\n", fnName, err)
+			return fmt.Errorf("%s: %s", fnName, err)
 		}
 
 		_, err = tx.Exec(insert, recipeID, ingName, count)
 		if err != nil {
-			return fmt.Errorf("%s: %s\n", fnName, err)
+			return fmt.Errorf("%s: %s", fnName, err)
 		}
 	}
 
 	// Fix database changes
 	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("%s: %s\n", fnName, err)
+		return fmt.Errorf("%s: %s", fnName, err)
 	}
 	return nil
 }
