@@ -265,7 +265,9 @@ func GetRecipes(urlSearch string) ([]Recipe, error) {
 		if err := productRows.Scan(&name, &totalCount); err != nil {
 			return nil, fmt.Errorf("%s: productRows.Scan: %w", fnName, err)
 		}
-		myProducts[name] = totalCount
+
+		// Must do ToLower to compare strings correctly
+		myProducts[strings.ToLower(name)] = totalCount
 	}
 	if err = productRows.Err(); err != nil {
 		return nil, fmt.Errorf("%s: productRows: %w", fnName, err)
@@ -281,8 +283,8 @@ func GetRecipes(urlSearch string) ([]Recipe, error) {
 
 	// 3. Group and calculate recipe missing products
 
-	// The order must be calculated explicitly, because page reloading
-	// may lead to item reordering, which is bad for UX
+	// The ordering must be done explicitly, because page reloading
+	// may lead to item reordering (stored in a map), which is bad for UX
 	var recipeOrder []int
 	recipeMap := make(map[int]*Recipe)
 	for rows.Next() {

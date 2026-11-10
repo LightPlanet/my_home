@@ -119,7 +119,7 @@ func productAdd(w http.ResponseWriter, r *http.Request) {
 	// may lead to string comparing errors
 	product.Name = strings.TrimSpace(r.FormValue("name"))
 	countStr := r.FormValue("count")
-	expiresAtStr := r.FormValue("expires_at") // Приходит в формате "YYYY-MM-MM" (например, "2026-11-07")
+	expiresAtStr := r.FormValue("expires_at") // Always "YYYY-MM-MM" (browser standard?)
 
 	product.Count, err = strconv.Atoi(countStr)
 	if err != nil || product.Count < 1 {
