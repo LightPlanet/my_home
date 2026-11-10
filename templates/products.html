@@ -45,7 +45,7 @@
           {{if eq .Status "fresh"}}Свежий{{else if eq .Status "expiring"}}Истекает{{else}}Просрочен{{end}}
         </span></td>
         <td class="actions">
-          <a class="action-btn edit" href="/products/{{.ID}}/edit" title="Редактировать">✏️</a>
+          <!-- <a class="action-btn edit" href="/products/{{.ID}}/edit" title="Редактировать">✏️</a> -->
           <form method="POST" action="/products/{{.ID}}/delete" style="display:inline">
             <button class="action-btn delete" type="submit" onclick="return confirm('Удалить этот продукт?')" title="Удалить">🗑️</button>
           </form>

@@ -40,7 +40,7 @@ func ParseTemplates() error {
 		HandlerFn string
 		Filenames []string
 	}{
-		{HandlerFn: "ProductsHandler", Filenames: []string{
+		{HandlerFn: "ProductHandler", Filenames: []string{
 			"templates/layout.html",
 			"templates/products.html",
 		}},
@@ -48,11 +48,12 @@ func ParseTemplates() error {
 			"templates/layout.html",
 			"templates/home.html",
 		}},
-		{HandlerFn: "Recip", Filenames: []string{
+		{HandlerFn: "RecipeHandler", Filenames: []string{
 			"templates/layout.html",
 			"templates/recipes.html",
 		}},
 	}
+
 	for _, info := range tmplInfos {
 		if err := parseTemplate(info.HandlerFn, info.Filenames...); err != nil {
 			return err
@@ -108,13 +109,15 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 
 // [2.2] Products page
 
-func productsAdd(w http.ResponseWriter, r *http.Request) {
+func productAdd(w http.ResponseWriter, r *http.Request) {
 	const fnName = "productsAdd"
 
 	var product database.Product
 	var err error
 
-	product.Name = r.FormValue("name")
+	// Using TrimSpace befor any DB insertion to avoid spaces, which
+	// may lead to string comparing errors
+	product.Name = strings.TrimSpace(r.FormValue("name"))
 	countStr := r.FormValue("count")
 	expiresAtStr := r.FormValue("expires_at") // Приходит в формате "YYYY-MM-MM" (например, "2026-11-07")
 
@@ -140,7 +143,7 @@ func productsAdd(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/products", http.StatusSeeOther)
 }
 
-func productsShow(w http.ResponseWriter, r *http.Request) {
+func productShow(w http.ResponseWriter, r *http.Request) {
 	const fnName = "productsShow"
 
 	filter := r.URL.Query().Get("filter")
@@ -152,7 +155,7 @@ func productsShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = templates["ProductsHandler"].ExecuteTemplate(w, "layout", map[string]any{
+	err = templates["ProductHandler"].ExecuteTemplate(w, "layout", map[string]any{
 		"Title":               "Список продуктов",
 		"ActiveMenu":          "products",
 		"ProductsFilterQuery": filter,
@@ -165,21 +168,21 @@ func productsShow(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func ProductsHandler(w http.ResponseWriter, r *http.Request) {
-	const fnName = "ProductsHandler"
+func ProductHandler(w http.ResponseWriter, r *http.Request) {
+	const fnName = "ProductHandler"
 
 	switch r.Method {
 	case http.MethodPost:
-		productsAdd(w, r)
+		productAdd(w, r)
 	case http.MethodGet:
-		productsShow(w, r)
+		productShow(w, r)
 	default:
 		log.Printf("%s unsupporetd http.Method: %v\n", fnName, r.Method)
 		http.Error(w, "Метод не поддерживается", http.StatusMethodNotAllowed)
 	}
 }
 
-func ProductsDeleteHandler(w http.ResponseWriter, r *http.Request) {
+func ProductDeleteHandler(w http.ResponseWriter, r *http.Request) {
 	const fnName = "ProductsDeleteHandler"
 
 	id, err := strconv.Atoi(r.PathValue("id"))
@@ -199,7 +202,7 @@ func ProductsDeleteHandler(w http.ResponseWriter, r *http.Request) {
 
 // [2.3] Recipes
 
-func recipesAdd(w http.ResponseWriter, r *http.Request) {
+func recipeAdd(w http.ResponseWriter, r *http.Request) {
 	const fnName = "recipesAdd"
 
 	if err := r.ParseForm(); err != nil {
@@ -207,18 +210,18 @@ func recipesAdd(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Ошибка парсинга формы", http.StatusBadRequest)
 		return
 	}
-	recipeName := strings.TrimSpace(r.FormValue("name"))
-	recipeDesc := strings.TrimSpace(r.FormValue("description"))
+	rName := strings.TrimSpace(r.FormValue("name"))
+	rDesc := strings.TrimSpace(r.FormValue("description"))
 	ingrNames := r.Form["ingr_names[]"]
 	ingrCounts := r.Form["ingr_counts[]"]
 
-	if recipeName == "" || len(ingrNames) == 0 {
+	if rName == "" || len(ingrNames) == 0 {
 		log.Printf("%s: %s\n", fnName, "recipeName == '' || len(ingrNames) == 0")
 		http.Error(w, "Название рецепта и ингредиенты обязательны!", http.StatusBadRequest)
 		return
 	}
 
-	err := database.AddRecipe(recipeName, recipeDesc, ingrNames, ingrCounts)
+	err := database.AddRecipe(rName, rDesc, ingrNames, ingrCounts)
 	if err != nil {
 		log.Printf("%s: %s\n", fnName, err)
 		http.Error(w, "", http.StatusInternalServerError)
@@ -228,14 +231,39 @@ func recipesAdd(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/recipes", http.StatusSeeOther)
 }
 
-func recipesShow(w http.ResponseWriter, r *http.Request) {
+func recipeShow(w http.ResponseWriter, r *http.Request) {
+	const fnName = "recipesShow"
 
+	search := r.URL.Query().Get("search")
+	recipes, err := database.GetRecipes(search)
+	if err != nil {
+		log.Printf("%s: %s\n", fnName, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = templates["RecipeHandler"].ExecuteTemplate(w, "layout", map[string]any{
+		"Title":       "Рецепты",
+		"ActiveMenu":  "recipes",
+		"SearchQuery": search,
+		"Recipes":     recipes,
+	})
+	if err != nil {
+		log.Printf("%s: %s\n", fnName, err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 }
 
-func RecipesHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		recipesAdd(w, r)
-	} else {
-		recipesShow(w, r)
+func RecipeHandler(w http.ResponseWriter, r *http.Request) {
+	const fnName = "RecipesHandler"
+
+	switch r.Method {
+	case http.MethodPost:
+		recipeAdd(w, r)
+	case http.MethodGet:
+		recipeShow(w, r)
+	default:
+		log.Printf("%s: %s\n", fnName, "Invalid HTTP method")
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 }

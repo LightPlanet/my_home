@@ -61,8 +61,8 @@ func (this *Product) CalcStatus() {
 
 // [1.2] Recipe
 
-type Recipeingr struct {
-	ID   int
+type RecipeIngredient struct {
+	Name string
 	Need int // By recipe
 	Have int // Available
 }
@@ -71,7 +71,7 @@ type Recipe struct {
 	ID          int
 	Name        string
 	Description string
-	ingrs       []Recipeingr
+	Ingredients []RecipeIngredient
 }
 
 // [2] Database methods -----------------------------------------------------------------
@@ -131,7 +131,7 @@ func Close() error {
 
 // [2.3] GetProducts
 
-// HTML [filter, search] -> SQL [query, queryArgs]
+// Product helper. HTML [filter, search] -> SQL [query, queryArgs]
 func transformFilterURLToSQL(urlFilter, urlSearch string) (string, []any) {
 	nowTime := time.Now()
 	now := nowTime.Format(sqlDateFormat)
@@ -228,12 +228,101 @@ func DeleteProduct(id int) error {
 
 // [2.6] GetRecipes
 
-func GetRecipes() ([]Recipe, error) {
-	return nil, nil
+// Recipe helper. HTML [search] -> SQL [query, queryArgs]
+func transformSearchURLToSQL(urlSearch string) (string, []any) {
+	// "FROM recipes r" is same as "using r = recipes"
+	query := `
+		SELECT r.id, r.name, r.description, ri.ingr_name, ri.required_count
+		FROM recipes r
+		JOIN recipe_ingredients ri ON r.id = ri.recipe_id
+	`
+	var args []any
+
+	if urlSearch != "" {
+		query += " WHERE r.name LIKE ?"
+		args = append(args, "%"+urlSearch+"%")
+	}
+
+	query += " ORDER BY r.id, ri.ingr_name;"
+	return query, args
+}
+
+func GetRecipes(urlSearch string) ([]Recipe, error) {
+	const fnName = "GetRecipesWithIngredients"
+
+	// 1. SELECT all available products
+	select_ := `SELECT LOWER(name), SUM(count) FROM products GROUP BY LOWER(name);`
+	productRows, err := db.Query(select_)
+	if err != nil {
+		return nil, fmt.Errorf("%s: products query: %w", fnName, err)
+	}
+	defer productRows.Close()
+
+	myProducts := make(map[string]int)
+	for productRows.Next() {
+		var name string
+		var totalCount int
+		if err := productRows.Scan(&name, &totalCount); err != nil {
+			return nil, fmt.Errorf("%s: productRows.Scan: %w", fnName, err)
+		}
+		myProducts[name] = totalCount
+	}
+	if err = productRows.Err(); err != nil {
+		return nil, fmt.Errorf("%s: productRows: %w", fnName, err)
+	}
+
+	// 2. SELECT all searched recipes
+	select_, args := transformSearchURLToSQL(urlSearch)
+	rows, err := db.Query(select_, args...)
+	if err != nil {
+		return nil, fmt.Errorf("%s: recipes query: %w", fnName, err)
+	}
+	defer rows.Close()
+
+	// 3. Group and calculate recipe missing products
+
+	// The order must be calculated explicitly, because page reloading
+	// may lead to item reordering, which is bad for UX
+	var recipeOrder []int
+	recipeMap := make(map[int]*Recipe)
+	for rows.Next() {
+		var rID, needCount int
+		var rName, rDescr, ingrName string
+
+		if err := rows.Scan(&rID, &rName, &rDescr, &ingrName, &needCount); err != nil {
+			return nil, fmt.Errorf("%s: recipes scan: %w", fnName, err)
+		}
+
+		if _, exists := recipeMap[rID]; !exists {
+			recipeMap[rID] = &Recipe{
+				ID:          rID,
+				Name:        rName,
+				Description: rDescr,
+				Ingredients: []RecipeIngredient{},
+			}
+			recipeOrder = append(recipeOrder, rID)
+		}
+
+		haveCount := myProducts[strings.ToLower(ingrName)]
+		recipeMap[rID].Ingredients = append(recipeMap[rID].Ingredients, RecipeIngredient{
+			Name: ingrName,
+			Need: needCount,
+			Have: haveCount,
+		})
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("%s: %w", fnName, err)
+	}
+
+	result := make([]Recipe, 0, len(recipeOrder))
+	for _, id := range recipeOrder {
+		result = append(result, *recipeMap[id])
+	}
+	return result, nil
 }
 
 // [2.7] AddRecipe
-func AddRecipe(recipeName, recipeDescription string, ingrNames, ingrCounts []string) error {
+func AddRecipe(rName, rDescription string, ingrNames, ingrCounts []string) error {
 	const fnName = "AddRecipe"
 
 	// Open database transaction
@@ -245,7 +334,7 @@ func AddRecipe(recipeName, recipeDescription string, ingrNames, ingrCounts []str
 	defer tx.Rollback()
 
 	insert := `INSERT INTO recipes (name, description) VALUES (?, ?)`
-	res, err := tx.Exec(insert, recipeName, recipeDescription)
+	res, err := tx.Exec(insert, strings.TrimSpace(rName), strings.TrimSpace(rDescription))
 	if err != nil {
 		return fmt.Errorf("%s: %s\n", fnName, err)
 	}

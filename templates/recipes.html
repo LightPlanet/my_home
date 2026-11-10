@@ -1,10 +1,17 @@
 {{define "content"}}
 <div class="content-header">
     <h1>{{.Title}}</h1>
-    <button class="btn btn-primary" onclick="toggleRecipeModal(true)">+ Добавить рецепт</button>
+    <button class="btn btn-primary" id="openModalBtn">+ Добавить рецепт</button>
 </div>
 
-<!-- Сетка рецептов в стиле вашего Dashboard -->
+<!-- Панель поиска по названию -->
+<div class="controls-panel">
+    <form method="GET" action="/recipes" class="search-box">
+        <input type="text" name="search" placeholder="Поиск рецептов по названию..." value="{{.SearchQuery}}">
+    </form>
+</div>
+
+<!-- Сетка карточек рецептов -->
 <div class="products-grid">
     {{range .Recipes}}
     <div class="product-card">
@@ -14,76 +21,70 @@
                     <span class="product-emoji">🍳</span>
                     <span class="product-title">{{.Name}}</span>
                 </div>
-                <p style="color: #64748b; font-size: 14px; margin-top: 8px; line-height: 1.4;">{{.Description}}</p>
+                {{if .Description}}
+                <p style="font-size: 14px; color: #64748b; margin: 10px 0;">{{.Description}}</p>
+                {{end}}
                 
-                <h4 style="margin-top: 16px; margin-bottom: 8px; font-size: 14px; color: #475569;">Ингредиенты:</h4>
-                <ul style="list-style: none; display: flex; flex-direction: column; gap: 6px;">
-                    {{range .Ingredients}}
-                    <li style="display: flex; align-items: center; justify-content: space-between; font-size: 14px;">
-                        <span style="display: inline-flex; align-items: center; gap: 8px;">
-                            <!-- Круглый индикатор статуса -->
-                            <span class="ing-bullet {{if ge .Available .Required}}enough{{else}}missing{{endif}}"></span>
-                            
-                            <!-- Текст названия -->
-                            <span class="ing-text {{if lt .Available .Required}}missing{{endif}}">{{.Name}}</span>
-                        </span>
-                        <span style="color: #64748b;">
-                            {{.Available}} / {{.Required}} шт.
-                            {{if lt .Available .Required}}
-                            <span style="color: var(--danger); font-size: 12px; font-weight: 600; margin-left: 4px;">(еще {{sub .Required .Available}})</span>
+                <div style="margin-top: 15px;">
+                    <h4 style="font-size: 14px; color: #475569; margin-bottom: 8px;">Ингредиенты:</h4>
+                    <ul style="list-style: none; display: flex; flex-direction: column; gap: 6px;">
+                        {{range .Ingredients}}
+                        <li style="font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                            <!-- Если Have меньше чем Need, красим маркер в красный, иначе в зеленый -->
+                            {{if lt .Have .Need}}
+                                <span class="ing-bullet missing"></span>
+                                <span class="ing-text missing">{{.Name}} — {{.Have}} / {{.Need}} шт.</span>
+                            {{else}}
+                                <span class="ing-bullet enough"></span>
+                                <span>{{.Name}} — {{.Have}} / {{.Need}} шт.</span>
                             {{end}}
-                        </span>
-                    </li>
-                    {{end}}
-                </ul>
+                        </li>
+                        {{end}}
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
     {{else}}
+    <!-- Плейсхолдер пустого состояния -->
     <div class="dashboard-placeholder">
         <span class="placeholder-icon">📖</span>
         <h2>Рецепты не найдены</h2>
-        <p>Добавьте свой первый рецепт, чтобы контролировать остатки продуктов.</p>
+        <p>Добавьте свой первый рецепт, чтобы автоматически контролировать остатки продуктов в холодильнике.</p>
     </div>
     {{end}}
 </div>
 
-<!-- Модальное окно (использует ваши оригинальные классы) -->
-<div id="recipeModal" class="modal-overlay" onclick="if(event.target === this) toggleRecipeModal(false)">
+<!-- МОДАЛЬНОЕ ОКНО ДОБАВЛЕНИЯ РЕЦЕПТА -->
+<div class="modal-overlay" id="productModal">
     <div class="modal-card">
         <div class="modal-header">
-            <h2>Новый рецепт</h2>
-            <button class="modal-close" onclick="toggleRecipeModal(false)">&times;</button>
+            <h2 style="font-size: 18px; font-weight: 600;">Новый рецепт</h2>
+            <button class="modal-close" id="closeModalBtn">&times;</button>
         </div>
         
         <form action="/recipes" method="POST" class="modal-form">
             <div class="form-group">
-                <label>Название рецепта</label>
-                <input type="text" name="name" required placeholder="Например, Паста Карбонара">
+                <label for="recipe_name">Название рецепта</label>
+                <input type="text" id="recipe_name" name="name" placeholder="Например, Блины" required>
             </div>
             
             <div class="form-group">
-                <label>Описание / Шаги</label>
-                <!-- Используем обычный input или style для textarea, чтобы соответствовать вашей дизайн-системе -->
-                <textarea name="description" rows="3" placeholder="Краткое описание приготовления..." style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 15px; font-family: inherit; resize: vertical;"></textarea>
+                <label for="recipe_desc">Описание / Шаги</label>
+                <input type="text" id="recipe_desc" name="description" placeholder="Краткое описание приготовления">
             </div>
-
+            
             <div class="form-group">
                 <label>Ингредиенты</label>
-                <div id="ingredientsFormContainer" style="display: flex; flex-direction: column; gap: 8px;">
-                    <div class="ingredient-row" style="display: flex; gap: 8px; align-items: center;">
-                        <input type="text" name="ingredient_names[]" placeholder="Название" required style="flex-grow: 1; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;">
-                        <input type="number" name="ingredient_counts[]" value="1" min="1" required style="width: 80px; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;">
-                    </div>
+                <!-- Сюда JS будет динамически вставлять строки ингредиентов -->
+                <div id="ingredientsFormContainer" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px;">
+                    <!-- Первая строка создается по умолчанию при открытии -->
                 </div>
-                
-                <button type="button" class="btn btn-secondary" onclick="addIngredientFormRow()" style="margin-top: 8px; justify-content: center; border: 1px dashed #cbd5e1; background: transparent;">
-                    + Добавить строку
-                </button>
+                <button type="button" class="btn btn-secondary" onclick="addIngredientFormRow()" style="justify-content: center;">+ Добавить строку</button>
             </div>
-
+            
             <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" onclick="toggleRecipeModal(false)">Отмена</button>
+                <button type="button" class="btn btn-secondary" id="cancelModalBtn">Отмена</button>
                 <button type="submit" class="btn btn-primary">Сохранить</button>
             </div>
         </form>

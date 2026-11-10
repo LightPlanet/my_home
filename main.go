@@ -35,9 +35,9 @@ func main() {
 	}
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	http.HandleFunc("/", handlers.HomeHandler)
-	http.HandleFunc("/products", handlers.ProductsHandler)
-	http.HandleFunc("/products/{id}/delete", handlers.ProductsDeleteHandler)
-	http.HandleFunc("/recipes", handlers.RecipesHandler)
+	http.HandleFunc("/products", handlers.ProductHandler)
+	http.HandleFunc("/products/{id}/delete", handlers.ProductDeleteHandler)
+	http.HandleFunc("/recipes", handlers.RecipeHandler)
 
 	log.Printf("Server starting at %s", serverAddr)
 	if err := http.ListenAndServe(serverAddr, nil); err != nil {
