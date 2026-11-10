@@ -1,28 +1,20 @@
 package main
 
 import (
+	"flag"
 	"log"
-	"my_home/cli"
 	"my_home/database"
 	"my_home/handlers"
 	"net/http"
 )
 
 func main() {
-	// Defaults
-	dbFile := "database.db"
-	serverAddr := ":8080"
-
-	userWantsContinue := cli.Parse(&dbFile, &serverAddr)
-	if !userWantsContinue {
-		return
-	}
-	//fmt.Println("dbFile", dbFile)
-	//fmt.Println("serverAddr", serverAddr)
-	//return
+	dbFile := flag.String("db", "database.db", "Путь к файлу базы данных")
+	serverAddr := flag.String("addr", ":8080", "Адрес сервера")
+	flag.Parse()
 
 	// Prepare DB
-	if err := database.Open(dbFile); err != nil {
+	if err := database.Open(*dbFile); err != nil {
 		log.Println(err)
 		return
 	}
@@ -40,7 +32,7 @@ func main() {
 	http.HandleFunc("/recipes", handlers.RecipeHandler)
 
 	log.Printf("Server starting at %s", serverAddr)
-	if err := http.ListenAndServe(serverAddr, nil); err != nil {
+	if err := http.ListenAndServe(*serverAddr, nil); err != nil {
 		log.Println(err)
 		return
 	}
