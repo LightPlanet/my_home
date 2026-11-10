@@ -31,7 +31,7 @@ func main() {
 	http.HandleFunc("/products/{id}/delete", handlers.ProductDeleteHandler)
 	http.HandleFunc("/recipes", handlers.RecipeHandler)
 
-	log.Printf("Server starting at %s", serverAddr)
+	log.Printf("Server starting at %s", *serverAddr)
 	if err := http.ListenAndServe(*serverAddr, nil); err != nil {
 		log.Println(err)
 		return
